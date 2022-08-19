@@ -1,18 +1,18 @@
 ---
-  type:
-    male: 0
-    female: 1
-    alien: 2
-    ape: 3
-    zombie: 4
-  skin:
-    albino: 0
-    light: 1
-    mid: 2
-    dark: 3
-    green: 4
-    brown: 5
-    blue: 6
+  types:
+    - male
+    - female
+    - alien
+    - ape
+    - zombie
+  skins:
+    - albino
+    - light
+    - mid
+    - dark
+    - green
+    - brown
+    - blue
   probabilities:
     male:
       probability: 60.15
@@ -29,3 +29,12 @@
     alien:
       probability: 0.1
       skin: [ 0, 0, 0, 0, 0, 0, 100 ]
+  accessories:
+    - 0.08
+    - 3.33
+    - 35.6
+    - 45.01
+    - 14.2
+    - 1.66
+    - 0.11
+    - 0.01
