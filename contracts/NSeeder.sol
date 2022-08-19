@@ -4,7 +4,7 @@ import "@openzeppelin/contracts/access/Ownable.sol"
 import "./interfaces/IPunksDescriptor.sol";
 import "./interfaces/ISeeder.sol";
 
-contract Seeder is ISeeder, Ownable {
+contract NSeeder is ISeeder, Ownable {
     
     uint24[] cTypeProbability;
     mapping(uint16 => uint24[]) cSkinProbability;
