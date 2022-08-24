@@ -11,11 +11,14 @@ contract NSeeder is ISeeder, Ownable {
     uint24[][] public cSkinProbability;
     uint24[] public cAccProbability;
     uint256[] public accFlags;
-    uint256 accCount;
-    mapping(uint256 => uint256) public accGroupMapping; // i: acc index, group index
-    uint256[][] accGroup; // i: group id, j: acc index in a group
+    uint256 accTypeCount;
+    mapping(uint256 => uint256) public accExclusiveGroupMapping; // i: acc index, group index
+    uint256[][] accExclusiveGroup; // i: group id, j: acc index in a group
+
+    IPunksDescriptor public punkDescriptor;
     
-    constructor() {
+    constructor(IPunksDescriptor descriptor) {
+        punkDescriptor = descriptor;
     }
 
     function generateSeed(uint punkId) external view returns (Seed memory ) {
@@ -24,10 +27,12 @@ contract NSeeder is ISeeder, Ownable {
         );
 
         Seed memory seed;
+        uint256 tmp;
 
         // Pick up random punk type
         uint24 partRandom = uint24(pseudorandomness);
-        for(uint16 i = 0; i < cTypeProbability.length; i ++) {
+        tmp = cTypeProbability.length;
+        for(uint16 i = 0; i < tmp; i ++) {
             if(partRandom < cTypeProbability[i]) {
                 seed.punkType = i;
                 break;
@@ -36,7 +41,8 @@ contract NSeeder is ISeeder, Ownable {
         
         // Pick up random skin tone
         partRandom = uint24(pseudorandomness >> 24);
-        for(uint16 i = 0; i < cTypeProbability.length; i ++) {
+        tmp = cSkinProbability.length;
+        for(uint16 i = 0; i < tmp; i ++) {
             if(partRandom < cTypeProbability[i]) {
                 seed.skinTone = i;
                 break;
@@ -45,12 +51,12 @@ contract NSeeder is ISeeder, Ownable {
 
         // Get possible groups for the current punk type
         uint16 punkFlags = uint16(accFlags[seed.punkType]);
-        uint256[] memory usedGroupFlags = new uint256[](accGroup.length);
-        uint256[] memory availableGroups = new uint256[](accGroup.length);
+        uint256[] memory usedGroupFlags = new uint256[](accExclusiveGroup.length);
+        uint256[] memory availableGroups = new uint256[](accExclusiveGroup.length);
         uint256 availableGroupCount = 0;
         for(uint8 acc = 0; punkFlags > 0; acc ++) {
             if(punkFlags & 0x01 == 1) {
-                uint256 group = accGroupMapping[acc];
+                uint256 group = accExclusiveGroupMapping[acc];
                 if(usedGroupFlags[group] == 1)
                     availableGroups[availableGroupCount ++] = group;
                 else
@@ -62,11 +68,38 @@ contract NSeeder is ISeeder, Ownable {
         // Pick up random accessory count
         partRandom = uint24(pseudorandomness >> 48);
         uint16 curAccCount = 0;
-        for(uint16 i = 0; i < cAccProbability.length; i ++) {
+        tmp = cAccProbability.length;
+        for(uint16 i = 0; i < tmp; i ++) {
             if(uint256(partRandom) * 0xffffff / cAccProbability[availableGroupCount] < cAccProbability[i]) {
                 curAccCount = i;
                 break;
             }
+        }
+
+        // Select used acc groups randomly
+        pseudorandomness >>= 72;
+        uint256[] memory selectedGroups = new uint256[](availableGroupCount);
+        for(uint16 i = 0; i < availableGroupCount; i ++)
+            selectedGroups[i] = i;
+        for(uint16 i = 0; i < curAccCount; i ++) {
+            uint16 tmpIndex = uint16((pseudorandomness >> (i * 8)) % availableGroupCount);
+            tmp = selectedGroups[i];
+            selectedGroups[i] = selectedGroups[tmpIndex];
+            selectedGroups[tmpIndex] = tmp;
+        }
+
+        pseudorandomness >>= curAccCount * 8;
+        seed.accessories = new Accessory[](curAccCount);
+        for(uint16 i = 0; i < curAccCount; i ++) {
+            uint256 group = availableGroups[selectedGroups[i]];
+            uint256 accRand = pseudorandomness >> (i * 16);
+            uint256 accInGroup = uint256(accRand & 0xff) % accExclusiveGroup[group].length;
+            uint256 accType = accExclusiveGroup[group][accInGroup];
+            
+            seed.accessories[i] = Accessory({
+                accType: uint16(accType),
+                accId: uint16(punkDescriptor.accCountByType(accType) % (accRand >> 8))
+            });
         }
         
         return seed;
@@ -91,10 +124,16 @@ contract NSeeder is ISeeder, Ownable {
         // i = 0;1;2;3;4
         for(uint i = 0; i < flags.length; i ++)
             accFlags[i] = flags[i];
-        accCount = count;
+        accTypeCount = count;
     }
+
+    // group list
+    // key: group, value: accessory type
     function setExclusiveAcc(uint256[] calldata exclusives) external onlyOwner {
-        
+        for(uint i = 0; i < accTypeCount; i ++) {
+            accExclusiveGroupMapping[i] = exclusives[i];
+            accExclusiveGroup[exclusives[i]].push(i);
+        }
     }
 
 
