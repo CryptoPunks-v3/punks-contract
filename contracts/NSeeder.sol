@@ -31,7 +31,7 @@ contract NSeeder is ISeeder, Ownable {
 
         // Pick up random punk type
         uint24 partRandom = uint24(pseudorandomness);
-        tmp = cTypeProbability.length;
+        tmp = uint256(cTypeProbability.length);
         for(uint16 i = 0; i < tmp; i ++) {
             if(partRandom < cTypeProbability[i]) {
                 seed.punkType = i;
@@ -70,7 +70,7 @@ contract NSeeder is ISeeder, Ownable {
         uint16 curAccCount = 0;
         tmp = cAccProbability.length;
         for(uint16 i = 0; i < tmp; i ++) {
-            if(uint256(partRandom) * 0xffffff / cAccProbability[availableGroupCount] < cAccProbability[i]) {
+            if(partRandom * 0xffffff / cAccProbability[availableGroupCount] < cAccProbability[i]) {
                 curAccCount = i;
                 break;
             }
@@ -92,9 +92,9 @@ contract NSeeder is ISeeder, Ownable {
         seed.accessories = new Accessory[](curAccCount);
         for(uint16 i = 0; i < curAccCount; i ++) {
             uint256 group = availableGroups[selectedGroups[i]];
-            uint256 accRand = pseudorandomness >> (i * 16);
-            uint256 accInGroup = uint256(accRand & 0xff) % accExclusiveGroup[group].length;
-            uint256 accType = accExclusiveGroup[group][accInGroup];
+            uint accRand = pseudorandomness >> (i * 16);
+            uint accInGroup = uint256(accRand & 0xff) % accExclusiveGroup[group].length;
+            uint accType = accExclusiveGroup[group][accInGroup];
             
             seed.accessories[i] = Accessory({
                 accType: uint16(accType),
@@ -122,7 +122,7 @@ contract NSeeder is ISeeder, Ownable {
 
     function setAccAvailability(uint256 count, uint256[] calldata flags) external onlyOwner {
         // i = 0;1;2;3;4
-        for(uint i = 0; i < flags.length; i ++)
+        for(uint256 i = 0; i < flags.length; i ++)
             accFlags[i] = flags[i];
         accTypeCount = count;
     }
@@ -130,7 +130,7 @@ contract NSeeder is ISeeder, Ownable {
     // group list
     // key: group, value: accessory type
     function setExclusiveAcc(uint256[] calldata exclusives) external onlyOwner {
-        for(uint i = 0; i < accTypeCount; i ++) {
+        for(uint256 i = 0; i < accTypeCount; i ++) {
             accExclusiveGroupMapping[i] = exclusives[i];
             accExclusiveGroup[exclusives[i]].push(i);
         }
