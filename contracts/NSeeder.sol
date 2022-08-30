@@ -9,7 +9,7 @@ contract NSeeder is ISeeder, Ownable {
     // MAX_GROUP_COUNT = 16
     uint24[] public cTypeProbability;
     uint24[][] public cSkinProbability;
-    uint24[] public cAccProbability;
+    uint24[] public cAccCountProbability;
     uint256[] public accFlags;
     uint256 accTypeCount;
     mapping(uint256 => uint256) public accExclusiveGroupMapping; // i: acc index, group index
@@ -57,10 +57,10 @@ contract NSeeder is ISeeder, Ownable {
         for(uint8 acc = 0; punkFlags > 0; acc ++) {
             if(punkFlags & 0x01 == 1) {
                 uint256 group = accExclusiveGroupMapping[acc];
-                if(usedGroupFlags[group] == 1)
+                if(usedGroupFlags[group] == 0) {
                     availableGroups[availableGroupCount ++] = group;
-                else
                     usedGroupFlags[group] = 1;
+                }
             }
             punkFlags >>= 1;
         }
@@ -68,15 +68,15 @@ contract NSeeder is ISeeder, Ownable {
         // Pick up random accessory count
         partRandom = uint24(pseudorandomness >> 48);
         uint16 curAccCount = 0;
-        tmp = cAccProbability.length;
+        tmp = cAccCountProbability.length;
         for(uint16 i = 0; i < tmp; i ++) {
-            if(partRandom * 0xffffff / cAccProbability[availableGroupCount] < cAccProbability[i]) {
+            if(partRandom * 0xffffff / cAccCountProbability[availableGroupCount] < cAccCountProbability[i]) {
                 curAccCount = i;
                 break;
             }
         }
 
-        // Select used acc groups randomly
+        // Select current acc groups randomly
         pseudorandomness >>= 72;
         uint256[] memory selectedGroups = new uint256[](availableGroupCount);
         for(uint16 i = 0; i < availableGroupCount; i ++)
@@ -88,6 +88,7 @@ contract NSeeder is ISeeder, Ownable {
             selectedGroups[tmpIndex] = tmp;
         }
 
+        // Pick up random accessories as seed
         pseudorandomness >>= curAccCount * 8;
         seed.accessories = new Accessory[](curAccCount);
         for(uint16 i = 0; i < curAccCount; i ++) {
@@ -115,21 +116,25 @@ contract NSeeder is ISeeder, Ownable {
         delete cSkinProbability[punkType];
         _setProbability(cSkinProbability[punkType], probabilities);
     }
-    function setAccProbability(uint256[] calldata probabilities) external onlyOwner {
-        delete cAccProbability;
-        _setProbability(cAccProbability, probabilities);
+    function setAccCountProbability(uint256[] calldata probabilities) external onlyOwner {
+        delete cAccCountProbability;
+        _setProbability(cAccCountProbability, probabilities);
     }
 
     function setAccAvailability(uint256 count, uint256[] calldata flags) external onlyOwner {
         // i = 0;1;2;3;4
+        delete accFlags;
         for(uint256 i = 0; i < flags.length; i ++)
-            accFlags[i] = flags[i];
+            accFlags.push(flags[i]);
         accTypeCount = count;
     }
 
     // group list
     // key: group, value: accessory type
-    function setExclusiveAcc(uint256[] calldata exclusives) external onlyOwner {
+    function setExclusiveAcc(uint256 groupCount, uint256[] calldata exclusives) external onlyOwner {
+        delete accExclusiveGroup;
+        for(uint256 i = 0; i < groupCount; i ++)
+            accExclusiveGroup.push();
         for(uint256 i = 0; i < accTypeCount; i ++) {
             accExclusiveGroupMapping[i] = exclusives[i];
             accExclusiveGroup[exclusives[i]].push(i);
