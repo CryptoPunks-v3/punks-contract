@@ -1,5 +1,6 @@
 pragma solidity ^0.8.15;
 
+import 'hardhat/console.sol';
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "./interfaces/IPunksDescriptor.sol";
 import "./interfaces/ISeeder.sol";
@@ -14,6 +15,9 @@ contract NSeeder is ISeeder, Ownable {
     uint256 accTypeCount;
     mapping(uint256 => uint256) public accExclusiveGroupMapping; // i: acc index, group index
     uint256[][] accExclusiveGroup; // i: group id, j: acc index in a group
+
+    uint256[] accCountByType;
+    uint256[] typeOrderSortedByCount; // [sorted_index] = real_group_id
 
     IPunksDescriptor public punkDescriptor;
     
@@ -31,7 +35,7 @@ contract NSeeder is ISeeder, Ownable {
 
         // Pick up random punk type
         uint24 partRandom = uint24(pseudorandomness);
-        tmp = uint256(cTypeProbability.length);
+        tmp = cTypeProbability.length;
         for(uint16 i = 0; i < tmp; i ++) {
             if(partRandom < cTypeProbability[i]) {
                 seed.punkType = i;
@@ -43,67 +47,99 @@ contract NSeeder is ISeeder, Ownable {
         partRandom = uint24(pseudorandomness >> 24);
         tmp = cSkinProbability.length;
         for(uint16 i = 0; i < tmp; i ++) {
-            if(partRandom < cTypeProbability[i]) {
+            if(partRandom < cSkinProbability[seed.punkType][i]) {
                 seed.skinTone = i;
                 break;
             }
         }
 
         // Get possible groups for the current punk type
-        uint16 punkFlags = uint16(accFlags[seed.punkType]);
+        tmp = uint16(accFlags[seed.punkType]); //punkType
         uint256[] memory usedGroupFlags = new uint256[](accExclusiveGroup.length);
         uint256[] memory availableGroups = new uint256[](accExclusiveGroup.length);
         uint256 availableGroupCount = 0;
-        for(uint8 acc = 0; punkFlags > 0; acc ++) {
-            if(punkFlags & 0x01 == 1) {
+        for(uint8 acc = 0; tmp > 0; acc ++) {
+            if(tmp & 0x01 == 1) {
                 uint256 group = accExclusiveGroupMapping[acc];
                 if(usedGroupFlags[group] == 0) {
                     availableGroups[availableGroupCount ++] = group;
                     usedGroupFlags[group] = 1;
                 }
             }
-            punkFlags >>= 1;
+            tmp >>= 1;
         }
 
         // Pick up random accessory count
         partRandom = uint24(pseudorandomness >> 48);
         uint16 curAccCount = 0;
-        tmp = cAccCountProbability.length;
-        for(uint16 i = 0; i < tmp; i ++) {
-            if(partRandom * 0xffffff / cAccCountProbability[availableGroupCount] < cAccCountProbability[i]) {
+        for(uint16 i = 0; i < availableGroupCount; i ++) {
+            if(uint256(partRandom) * cAccCountProbability[availableGroupCount - 1] / 0xffffff < cAccCountProbability[i]) {
                 curAccCount = i;
                 break;
             }
         }
 
         // Select current acc groups randomly
+
+        // 
+        // for(uint16 i = 0; i < availableGroupCount; i ++)
+        //     selectedGroups[i] = i;
+        // for(uint16 i = 0; i < curAccCount; i ++) {
+        //     uint16 tmpIndex = uint8((pseudorandomness >> (i * 8)) % availableGroupCount);
+        //     console.log(tmpIndex);
+        //     tmp = selectedGroups[i];
+        //     selectedGroups[i] = selectedGroups[tmpIndex];
+        //     selectedGroups[tmpIndex] = tmp;
+        // }
         pseudorandomness >>= 72;
-        uint256[] memory selectedGroups = new uint256[](availableGroupCount);
-        for(uint16 i = 0; i < availableGroupCount; i ++)
-            selectedGroups[i] = i;
-        for(uint16 i = 0; i < curAccCount; i ++) {
-            uint16 tmpIndex = uint16((pseudorandomness >> (i * 8)) % availableGroupCount);
-            tmp = selectedGroups[i];
-            selectedGroups[i] = selectedGroups[tmpIndex];
-            selectedGroups[tmpIndex] = tmp;
+        uint _accTypeCount = accTypeCount;
+        uint256[] memory selectedRandomness = new uint256[](_accTypeCount);
+        uint256[] memory typeUsed = new uint256[](_accTypeCount);
+        for(uint i = 0; i < _accTypeCount; i ++) {
+            selectedRandomness[i] = uint16((pseudorandomness >> (i * 16)) % (accCountByType[i] * 1000));
         }
 
-        // Pick up random accessories as seed
-        pseudorandomness >>= curAccCount * 8;
+        pseudorandomness >>= curAccCount * 16;
         seed.accessories = new Accessory[](curAccCount);
-        for(uint16 i = 0; i < curAccCount; i ++) {
-            uint256 group = availableGroups[selectedGroups[i]];
-            uint accRand = pseudorandomness >> (i * 16);
-            uint accInGroup = uint256(accRand & 0xff) % accExclusiveGroup[group].length;
-            uint accType = accExclusiveGroup[group][accInGroup];
-            
+
+        tmp = 0; // accType
+        uint maxValue = 0;
+        for(uint i = 0; i < curAccCount; i ++) {
+            tmp = 0;
+            maxValue = 0;
+            for(uint j = 0; j < _accTypeCount; j ++) {
+                if(typeUsed[j] == 1) continue;
+                if(maxValue >= accCountByType[j]) break;
+                if(maxValue < selectedRandomness[j]) {
+                    maxValue = selectedRandomness[j];
+                    tmp = typeOrderSortedByCount[j];
+                }
+            }
+
+            uint accRand = uint8(pseudorandomness >> (i * 8)) % accCountByType[tmp];
             seed.accessories[i] = Accessory({
-                accType: uint16(accType),
-                accId: uint16(punkDescriptor.accCountByType(accType) % (accRand >> 8))
+                accType: uint16(tmp),
+                accId: uint16(accRand)
             });
         }
-        
+
+        console.log(curAccCount);
         return seed;
+
+        // Pick up random accessories as seed
+        // pseudorandomness >>= curAccCount * 10;
+        // seed.accessories = new Accessory[](curAccCount);
+        // for(uint16 i = 0; i < curAccCount; i ++) {
+        //     uint256 group = availableGroups[selectedGroups[i]];
+        //     uint accRand = pseudorandomness >> (i * 16);
+        //     uint accInGroup = uint256(accRand & 0xff) % accExclusiveGroup[group].length;
+        //     uint accType = accExclusiveGroup[group][accInGroup];
+            
+        //     seed.accessories[i] = Accessory({
+        //         accType: uint16(accType),
+        //         accId: uint16(punkDescriptor.accCountByType(accType) % (accRand >> 8))
+        //     });
+        // }
     }
 
     function setTypeProbability(uint256[] calldata probabilities) external onlyOwner {
@@ -138,6 +174,29 @@ contract NSeeder is ISeeder, Ownable {
         for(uint256 i = 0; i < accTypeCount; i ++) {
             accExclusiveGroupMapping[i] = exclusives[i];
             accExclusiveGroup[exclusives[i]].push(i);
+        }
+    }
+
+    function setAccCountPerType(uint256[] memory counts) external {
+        uint256[] memory _typeOrderSortedByCount = new uint256[](counts.length);
+        for(uint i = 0; i < counts.length; i ++)
+            _typeOrderSortedByCount[i] = i;
+        for(uint i = 0; i < counts.length; i ++) {
+            for(uint j = i + 1; j < counts.length; j ++) {
+                if(counts[i] < counts[j]) {
+                    uint temp = counts[i];
+                    counts[i] = counts[j];
+                    counts[j] = temp;
+
+                    temp = _typeOrderSortedByCount[i];
+                    _typeOrderSortedByCount[i] = _typeOrderSortedByCount[j];
+                    _typeOrderSortedByCount[j] = temp;
+                }
+            }
+        }
+        for(uint i = 0; i < counts.length; i ++) {
+            typeOrderSortedByCount.push(_typeOrderSortedByCount[i]);
+            accCountByType.push(counts[i]);
         }
     }
 

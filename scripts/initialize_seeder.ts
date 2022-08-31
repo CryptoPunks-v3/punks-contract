@@ -58,6 +58,10 @@ async function setAccSetting(nSeeder) {
     const typeAvailabilityResponse = await (await nSeeder.setAccAvailability(accTypeCount, accTypeAvailabilities)).wait()
     console.log("setAccAvailability", accTypeCount, accTypeAvailabilities)
 
+    const accCountPerType = Object.keys(probDoc.acc_types).map(type => Object.values(probDoc.accessory_types).filter(item => item == type).length)
+    console.log(accCountPerType)
+    const accCountSetResponse = await (await nSeeder.setAccCountPerType(accCountPerType)).wait()
+
     const exclusives = probDoc.exclusive_groups.reduce((prev, group, groupIndex) => {
         group.forEach(item => {
             const typeIndex = Object.keys(probDoc.acc_types).indexOf(item)
