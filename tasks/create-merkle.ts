@@ -111,24 +111,27 @@ task("create-merkle", "Create merkle tree")
             const seedHash = ethers.utils.keccak256(seedBuffer)
             seedHashes.push(seedHash)
         }
-        const queue = seedHashes.map(hash => ({ hash, parent: null, left: null, right: null }))
-        while(queue.length > 1) {
-            let a: any, b: any
-            let firstNode = queue.shift()
-            let lastNode = queue.shift()
-            if(queue[0] < queue[1]) {
-                a = ethers.utils.arrayify(firstNode.hash)
-                b = ethers.utils.arrayify(lastNode.hash)
-            } else {
-                b = ethers.utils.arrayify(firstNode.hash)
-                a = ethers.utils.arrayify(lastNode.hash)
-            }
-            const aBuffer: number[] = Object.values(a), bBuffer: number[] = Object.values(b)
-            const mergedHash = ethers.utils.keccak256(aBuffer.concat(bBuffer))
-            const parentNode = { hash: mergedHash, left: firstNode, right: lastNode, parent: null }
-            firstNode.parent = lastNode.parent = parentNode
-            queue.push(parentNode)
-        }
-        const merkleRoot = queue[0];
-        console.log(merkleRoot.parent, merkleRoot.left, merkleRoot.right)
+
+        return seedHashes
+        
+        // const queue = seedHashes.map(hash => ({ hash, parent: null, left: null, right: null }))
+        // while(queue.length > 1) {
+        //     let a: any, b: any
+        //     let firstNode = queue.shift()
+        //     let lastNode = queue.shift()
+        //     if(queue[0] < queue[1]) {
+        //         a = ethers.utils.arrayify(firstNode.hash)
+        //         b = ethers.utils.arrayify(lastNode.hash)
+        //     } else {
+        //         b = ethers.utils.arrayify(firstNode.hash)
+        //         a = ethers.utils.arrayify(lastNode.hash)
+        //     }
+        //     const aBuffer: number[] = Object.values(a), bBuffer: number[] = Object.values(b)
+        //     const mergedHash = ethers.utils.keccak256(aBuffer.concat(bBuffer))
+        //     const parentNode = { hash: mergedHash, left: firstNode, right: lastNode, parent: null }
+        //     firstNode.parent = lastNode.parent = parentNode
+        //     queue.push(parentNode)
+        // }
+        // const merkleRoot = queue[0];
+        // console.log(merkleRoot.parent, merkleRoot.left, merkleRoot.right)
     })

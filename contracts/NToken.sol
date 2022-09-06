@@ -28,7 +28,7 @@ contract NToken is Ownable {
     function mint(address to, uint256 tokenId) external onlyOwner {
         _mint(to, tokenId);
     }
-    function registerAirdropHashes(bytes32[] calldata hashes) external onlyOwner {
+    function registerOGHashes(bytes32[] calldata hashes) external onlyOwner {
         for(uint i = 0; i < hashes.length; i ++) {
             seedHashes[hashes[i]] = 1;
         }
