@@ -23,7 +23,7 @@ contract NToken is Ownable {
             let accLen := mload(seed)
             seedHash := keccak256(seed, add(0x60, mul(accLen, 0x40)))
         }
-        seedHashes[seedHash] = tokenId;
+        seedHashes[seedHash] = 1;
     }
     function mint(address to, uint256 tokenId) external onlyOwner {
         _mint(to, tokenId);
