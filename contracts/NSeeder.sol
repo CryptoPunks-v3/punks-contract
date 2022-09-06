@@ -1,6 +1,6 @@
 pragma solidity ^0.8.15;
 
-import 'hardhat/console.sol';
+// import 'hardhat/console.sol';
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "./interfaces/IPunksDescriptor.sol";
 import "./interfaces/ISeeder.sol";
@@ -18,11 +18,8 @@ contract NSeeder is ISeeder, Ownable {
 
     uint256[] accCountByType;
     uint256[] typeOrderSortedByCount; // [sorted_index] = real_group_id
-
-    IPunksDescriptor public punkDescriptor;
     
-    constructor(IPunksDescriptor descriptor) {
-        punkDescriptor = descriptor;
+    constructor() {
     }
 
     function generateSeed(uint punkId) external view returns (Seed memory ) {
@@ -36,7 +33,7 @@ contract NSeeder is ISeeder, Ownable {
         // Pick up random punk type
         uint24 partRandom = uint24(pseudorandomness);
         tmp = cTypeProbability.length;
-        for(uint16 i = 0; i < tmp; i ++) {
+        for(uint8 i = 0; i < tmp; i ++) {
             if(partRandom < cTypeProbability[i]) {
                 seed.punkType = i;
                 break;
@@ -46,7 +43,7 @@ contract NSeeder is ISeeder, Ownable {
         // Pick up random skin tone
         partRandom = uint24(pseudorandomness >> 24);
         tmp = cSkinProbability.length;
-        for(uint16 i = 0; i < tmp; i ++) {
+        for(uint8 i = 0; i < tmp; i ++) {
             if(partRandom < cSkinProbability[seed.punkType][i]) {
                 seed.skinTone = i;
                 break;
@@ -123,7 +120,6 @@ contract NSeeder is ISeeder, Ownable {
             });
         }
 
-        console.log(curAccCount);
         return seed;
 
         // Pick up random accessories as seed

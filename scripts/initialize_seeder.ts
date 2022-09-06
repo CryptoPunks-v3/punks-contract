@@ -18,7 +18,11 @@ async function deploy() {
     const NSeeder = await ethers.getContractFactory("NSeeder")
     const nSeeder = await NSeeder.deploy(punksDescriptor.address)
     await nSeeder.deployed()
-    return nSeeder
+
+    const NToken = await ethers.getContractFactory("NToken")
+    const nToken = await NToken.deploy(nSeeder.address)
+    await nToken.deployed()
+    return { punksDescriptor, nSeeder, nToken }
 }
 async function setProbabilities(nSeeder) {
     const typeProbabilities =
@@ -81,10 +85,16 @@ async function setAccSetting(nSeeder) {
     console.log(seed)
 }
 
+async function minToken(nToken) {
+    const [ deployer ] = await ethers.getSigners()
+    const res = await (await nToken.mint(deployer.address, 1)).wait()
+}
+
 async function main() {
-    const nSeeder = await deploy()
-    await setProbabilities(nSeeder);
-    await setAccSetting(nSeeder);
+    const contracts = await deploy()
+    await setProbabilities(contracts.nSeeder);
+    await setAccSetting(contracts.nSeeder);
+    await minToken(contracts.nToken);
 }
 main().catch((error) => {
     console.log(error);
