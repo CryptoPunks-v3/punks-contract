@@ -6,8 +6,8 @@ interface ISeeder {
         uint16 accId;
     }
     struct Seed {
-        uint16 punkType;
-        uint16 skinTone;
+        uint8 punkType;
+        uint8 skinTone;
         Accessory[] accessories;
     }
 
